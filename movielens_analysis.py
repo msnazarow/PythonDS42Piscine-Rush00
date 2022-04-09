@@ -274,7 +274,7 @@ class Ratings:
 			return dict(sorted(output.items(), key=lambda x: -x[1])[:n])
 
 
-# ratings = Ratings("ml-latest-small/ratings.csv", "ml-latest-small/movies.csv")
+# ratings = Ratings("/goinfre/dmadelei/ml-latest-small/ratings.csv", "/goinfre/dmadelei/ml-latest-small/movies.csv")
 # print(ratings.users.top_controversial(5))
 # print(ratings.users.dist_by_rating())
 # print(ratings.users.dist_by_num_of_ratings())
@@ -342,12 +342,12 @@ class Tags:
 		return sorted((filter(lambda x: re.search(r'\b{}\b'.format(word), x), set(self.__tags))))
 
 
-tags = Tags("ml-latest-small/tags.csv")
-print(tags.most_words(100))
-print(tags.longest(10))
-print(tags.most_words_and_longest(10))
-print(tags.most_popular(10))
-print(tags.tags_with("Pacino"))
+# tags = Tags("ml-latest-small/tags.csv")
+# print(tags.most_words(100))
+# print(tags.longest(10))
+# print(tags.most_words_and_longest(10))
+# print(tags.most_popular(10))
+# print(tags.tags_with("Pacino"))
 
 
 class Links:
@@ -525,10 +525,10 @@ class Links:
 		return costs
 
 
-link = Links("ml-latest-small/links.csv")
-print(link.get_imdb(['0114709'], ['Director', 'Budget', 'Gross worldwide', 'Runtime']))
-print(link.top_directors(10))
-print(link.most_expensive(10))
-print(link.most_profitable(10))
-print(link.longest(10))
-print(link.top_cost_per_minute(10))
+# link = Links("ml-latest-small/links.csv")
+# print(link.get_imdb(['0114709'], ['Director', 'Budget', 'Gross worldwide', 'Runtime']))
+# print(link.top_directors(10))
+# print(link.most_expensive(10))
+# print(link.most_profitable(10))
+# print(link.longest(10))
+# print(link.top_cost_per_minute(10))
