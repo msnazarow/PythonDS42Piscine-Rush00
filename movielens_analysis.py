@@ -3,6 +3,12 @@ from functools import reduce
 from typing import List, Dict
 from collections import Counter, OrderedDict
 from datetime import date
+import urllib
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+import ssl
+
 
 
 def mean(seq):
@@ -268,15 +274,15 @@ class Ratings:
 			return dict(sorted(output.items(), key=lambda x: -x[1])[:n])
 
 
-ratings = Ratings("ml-latest-small/ratings.csv", "ml-latest-small/movies.csv")
-print(ratings.users.top_controversial(5))
-print(ratings.users.dist_by_rating())
-print(ratings.users.dist_by_num_of_ratings())
-print(ratings.top_by_ratings(5))
-print(ratings.dist_by_rating())
-print(ratings.top_controversial(5))
-print(ratings.top_by_num_of_ratings(5))
-exit(0)
+# ratings = Ratings("ml-latest-small/ratings.csv", "ml-latest-small/movies.csv")
+# print(ratings.users.top_controversial(5))
+# print(ratings.users.dist_by_rating())
+# print(ratings.users.dist_by_num_of_ratings())
+# print(ratings.top_by_ratings(5))
+# print(ratings.dist_by_rating())
+# print(ratings.top_controversial(5))
+# print(ratings.top_by_num_of_ratings(5))
+# exit(0)
 
 
 class Tags:
@@ -310,18 +316,7 @@ class Tags:
 		The method returns top-n longest tags in terms of the number of characters.
 		It is a list of the tags. Drop the duplicates. Sort it by numbers descendingly.
 		"""
-		# return set(self.)
-		if (len(self.__tags) < n or n <= 0):
-			raise ValueError('n > count teg or n <= 0')
-		else:
-			sorted_tuple = dict(zip(self.__tags, (map(lambda x: len(x), self.__tags))))
-			big_tags = dict(sorted(sorted_tuple.items(), key=lambda x: -x[1]))
-			count = 0
-			for key, value in sorted_tuple.items():
-				if (count != n):
-					big_tags[key] = value
-					count += 1
-		return big_tags
+		return dict(sorted({x: len(x) for x in set(self.__tags)}.items(), key=lambda x: -x[1])[:n])
 
 	def most_words_and_longest(self, n):
 		"""
@@ -329,8 +324,7 @@ class Tags:
 		top-n longest tags in terms of the number of characters.
 		Drop the duplicates. It is a list of the tags.
 		"""
-
-		return big_tags
+		return list(set(self.most_words(n)).intersection(self.longest(n)))
 
 	def most_popular(self, n):
 		"""
@@ -345,73 +339,196 @@ class Tags:
 		The method returns all unique tags that include the word given as the argument.
 		Drop the duplicates. It is a list of the tags. Sort it by tag names alphabetically.
 		"""
-
 		return sorted((filter(lambda x: re.search(r'\b{}\b'.format(word), x), set(self.__tags))))
 
 
 tags = Tags("ml-latest-small/tags.csv")
 print(tags.most_words(100))
-# print(tags.longest(10))
-# # print(tags.most_words_and_longest(10))
+print(tags.longest(10))
+print(tags.most_words_and_longest(10))
 print(tags.most_popular(10))
 print(tags.tags_with("Pacino"))
 
 
-# print(tags.tags_with('a'))
-
 class Links:
 	"""
-    Analyzing data from links.csv
-    """
+	Analyzing data from links.csv
+	"""
 
 	def __init__(self, path_to_the_file):
 		"""
-        Put here any fields that you think you will need.
-        """
-
-	def get_imdb(list_of_movies, list_of_fields):
+		Put here any fields that you think you will need.
 		"""
-The method returns a list of lists [movieId, field1, field2, field3, ...] for the list of movies given as the argument (movieId).
-        For example, [movieId, Director, Budget, Cumulative Worldwide Gross, Runtime].
-        The values should be parsed from the IMDB webpages of the movies.
-     Sort it by movieId descendingly.
-        """
+		data = []
+		# проверка на открытие файла
+		with open(path_to_the_file, 'r') as f:
+			str_data = (f.read().lower())
+		data = str_data.split('\n')
+		next_data = []
+		for i in data[1:len(data) - 1]:
+			data = re.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", i)
+			# next_data.append(movieId, imdbId, tmdbId)
+			next_data.append(data)
+		# print(next_data)
+		self.data_file = next_data
+		self.list_movies_data = []
+		for i in range(0, 10):
+			ssl._create_default_https_context = ssl._create_unverified_context
+			url = f'https://www.imdb.com/title/tt{self.data_file[i][1]}/'
+			headers = {'User-Agent': 'My User Agent 1.0',
+			           'From': f'https://www.imdb.com/title/tt{self.data_file[i][1]}/'
+			           }
+			page = urllib.request.urlopen(urllib.request.Request(url=url, headers=headers)).read()
+			soup = BeautifulSoup(page, 'lxml')
+			tags = soup.find_all('li', role='presentation', class_='ipc-metadata-list__item')
+			for tag in tags:
+				if (tag.text.find('Director') != -1):
+					Director = tag.text.replace('Director', '')
+					break
+			for tag in tags:
+				if (tag.text.find('Budget') != -1):
+					Budget = tag.text.replace('Budget', '')
+					break
+			for tag in tags:
+				if (tag.text.find('Also known as') != -1):
+					film = tag.text.replace('Also known as', '')
+					break
+			for tag in tags:
+				if (tag.text.find('Gross worldwide') != -1):
+					Gross = tag.text.replace('Gross worldwide', '')
+					break
+			for tag in tags:
+				if (tag.text.find('Runtime') != -1):
+					Runtime = tag.text.replace('Runtime', '')
+					break
+			field_data = [self.data_file[i][1], film, Director, Budget, Gross, Runtime]
+			self.list_movies_data.append(field_data)
+
+	def get_imdb(self, list_of_movies, list_of_fields):
+		"""
+		The method returns a list of lists [movieId, field1, field2, field3, ...] for the list of movies given as the argument (movieId).
+		For example, [movieId, Director, Budget, Cumulative Worldwide Gross, Runtime].
+		The values should be parsed from the IMDB webpages of the movies.
+		Sort it by movieId descendingly.
+		"""
+		list_movies_data = []
+		for i in list_of_movies:
+			ssl._create_default_https_context = ssl._create_unverified_context
+			url = f'https://www.imdb.com/title/tt{i}/'
+			headers = {'User-Agent': 'My User Agent 1.0',
+			           'From': f'https://www.imdb.com/title/tt{i}/'
+			           }
+			page = urllib.request.urlopen(urllib.request.Request(url=url, headers=headers)).read()
+			soup = BeautifulSoup(page, 'lxml')
+			tags = soup.find_all('li', role='presentation', class_='ipc-metadata-list__item')
+			field_data = [i]
+			for field in list_of_fields:
+				for tag in tags:
+					if (tag.text.find(field) != -1):
+						field_value = tag.text.replace(field, '')
+						break
+				field_data.append(field_value)
+			list_movies_data.append(field_data)
+		imdb_info = list(sorted(list_movies_data, key=lambda x: (-int(x[0]))))
 		return imdb_info
 
 	def top_directors(self, n):
 		"""
-        The method returns a dict with top-n directors where the keys are directors and
-        the values are numbers of movies created by them. Sort it by numbers descendingly.
-        """
+		The method returns a dict with top-n directors where the keys are directors and
+		the values are numbers of movies created by them. Sort it by numbers descendingly.
+		"""
+		list_movies = []
+		if (n > len(self.list_movies_data) and n <= 0):
+			ValueError('n > list')
+		for i in range(0, n):
+			list_movies.append([self.list_movies_data[i][2], self.list_movies_data[i][0]])
+		a = sorted(list_movies)
+		directors = dict()
+		for i in a:
+			directors[i[0]] = i[1]
 		return directors
 
 	def most_expensive(self, n):
 		"""
-        The method returns a dict with top-n movies where the keys are movie titles and
-        the values are their budgets. Sort it by budgets descendingly.
-        """
+		The method returns a dict with top-n movies where the keys are movie titles and
+		the values are their budgets. Sort it by budgets descendingly.
+		"""
+		list_movies = []
+		if (n > len(self.list_movies_data) and n <= 0):
+			ValueError('n > list')
+		for i in range(0, n):
+			list_movies.append([self.list_movies_data[i][1], self.list_movies_data[i][3]])
+		a = sorted(list_movies)
+		budgets = dict()
+		for i in a:
+			budgets[i[0]] = i[1]
 		return budgets
 
 	def most_profitable(self, n):
 		"""
-        The method returns a dict with top-n movies where the keys are movie titles and
-        the values are the difference between cumulative worldwide gross and budget.
-     Sort it by the difference descendingly.
-        """
+		The method returns a dict with top-n movies where the keys are movie titles and
+		the values are the difference between cumulative worldwide gross and budget.
+		Sort it by the difference descendingly.
+		"""
+		list_movies = []
+		if (n > len(self.list_movies_data) and n <= 0):
+			ValueError('n > list')
+		for i in range(0, n):
+			gross = ''.join(x for x in self.list_movies_data[i][4] if x.isdigit())
+			budget = ''.join(x for x in self.list_movies_data[i][3] if x.isdigit())
+			list_movies.append([self.list_movies_data[i][1], int(gross) - int(budget)])
+		a = sorted(list_movies, key=lambda x: -x[1])
+		profits = dict()
+		for i in a:
+			profits[i[0]] = i[1]
 		return profits
 
 	def longest(self, n):
 		"""
-        The method returns a dict with top-n movies where the keys are movie titles and
-        the values are their runtime. If there are more than one version â€“ choose any.
-     Sort it by runtime descendingly.
-        """
+		The method returns a dict with top-n movies where the keys are movie titles and
+		the values are their runtime. If there are more than one version â€“ choose any.
+		Sort it by runtime descendingly.
+		"""
+		list_movies = []
+		if (n > len(self.list_movies_data) and n <= 0):
+			ValueError('n > list')
+		for i in range(0, n):
+			Runtime_min = int(int(self.list_movies_data[i][5].split(' ')[0]) * 60) + int(
+				self.list_movies_data[i][5].split(' ')[2])
+			field_data = [self.list_movies_data[i][1], self.list_movies_data[i][5], Runtime_min]
+			list_movies.append(field_data)
+		a = sorted(list_movies, key=lambda x: -x[2])
+		runtimes = dict()
+		for i in a:
+			runtimes[i[0]] = i[1]
 		return runtimes
 
 	def top_cost_per_minute(self, n):
 		"""
-        The method returns a dict with top-n movies where the keys are movie titles and
-the values are the budgets divided by their runtime. The budgets can be in different currencies â€“ do not pay attention to it.
-     The values should be rounded to 2 decimals. Sort it by the division descendingly.
-        """
+		The method returns a dict with top-n movies where the keys are movie titles and
+		the values are the budgets divided by their runtime. The budgets can be in different currencies â€“ do not pay attention to it.
+		The values should be rounded to 2 decimals. Sort it by the division descendingly.
+		"""
+		list_movies = []
+		if (n > len(self.list_movies_data) and n <= 0):
+			ValueError('n > list')
+		for i in range(0, n):
+			Runtime_min = int(int(self.list_movies_data[i][5].split(' ')[0]) * 60) + int(
+				self.list_movies_data[i][5].split(' ')[2])
+			budget = ''.join(x for x in self.list_movies_data[i][3] if x.isdigit())
+			field_data = [self.list_movies_data[i][1], round(int(budget) / Runtime_min, 2)]
+			list_movies.append(field_data)
+		a = sorted(list_movies, key=lambda x: -x[1])
+		costs = dict()
+		for i in a:
+			costs[i[0]] = i[1]
 		return costs
+
+
+link = Links("ml-latest-small/links.csv")
+print(link.get_imdb(['0114709'], ['Director', 'Budget', 'Gross worldwide', 'Runtime']))
+print(link.top_directors(10))
+print(link.most_expensive(10))
+print(link.most_profitable(10))
+print(link.longest(10))
+print(link.top_cost_per_minute(10))
