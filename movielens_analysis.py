@@ -49,7 +49,8 @@ class Movies:
 			next(file)
 			for line in file:
 				movieId, title, genres = re.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", line.strip())
-				title = re.sub("\"(.*)\"", r"\1", title)
+				while re.match("\"(.*)\"", title):
+					title = re.sub("\"(.*)\"", r"\1", title)
 				self.__movies[movieId] = (Movie(movieId, title, genres))
 
 	def dist_by_release(self):
@@ -57,21 +58,21 @@ class Movies:
         The method returns a dict or an OrderedDict where the keys are years and the values are counts.
         You need to extract years from the titles. Sort it by counts descendingly.
         """
-		return dict(Counter(map(lambda x: x.year, self.__movies)).most_common())
+		return dict(Counter(map(lambda x: x.year, self.__movies.values())).most_common())
 
 	def dist_by_genres(self):
 		"""
         The method returns a dict where the keys are genres and the values are counts.
      Sort it by counts descendingly.
         """
-		return dict(Counter(reduce(lambda a, b: a + b, map(lambda x: x.genres, self.__movies))).most_common())
+		return dict(Counter(reduce(lambda a, b: a + b, map(lambda x: x.genres, self.__movies.values()))).most_common())
 
 	def most_genres(self, n):
 		"""
         The method returns a dict with top-n movies where the keys are movie titles and
         the values are the number of genres of the movie. Sort it by numbers descendingly.
         """
-		return dict(Counter({x.title: len(x.genres) for x in self.__movies}).most_common(n))
+		return dict(Counter({x.title: len(x.genres) for x in self.__movies.values()}).most_common(n))
 
 	def __getitem__(self, item):
 		return self.__movies[item]
@@ -79,6 +80,8 @@ class Movies:
 
 # movies = Movies("ml-latest-small/movies.csv")
 # print(movies.most_genres(10))
+# print(movies.dist_by_genres())
+# print(movies.dist_by_release())
 # exit(0)
 
 
@@ -121,7 +124,7 @@ class Ratings:
 	def dist_by_rating(self):
 		"""
         The method returns a dict where the keys are ratings and the values are counts.
-     Sort it by ratings ascendingly.
+        Sort it by ratings ascendingly.
         """
 		return self.__ratings.dist_by_rating()
 
@@ -233,9 +236,11 @@ class Ratings:
         """
 
 		def dist_by_num_of_ratings(self):
+			"""returns the distribution of users by the number of ratings made by them."""
 			return dict(Counter(map(lambda x: x.userId, self._ratings)).most_common())
 
-		def dist_by_ratings(self, metric="average"):
+		def dist_by_rating(self, metric="average"):
+			"""returns the distribution of users by average or median ratings made by them."""
 			output = {}
 			for elem in self._ratings:
 				if elem.userId not in output:
@@ -249,9 +254,10 @@ class Ratings:
 					output[userId] = round(median(output[userId]), 2)
 			else:
 				return []
-			return {self._movies[elem[0]].title: elem[1] for elem in sorted(output.items(), key=lambda x: -x[1])}
+			return dict(sorted(output.items(), key=lambda x: x[1]))
 
 		def top_controversial(self, n):
+			"""returns top-n users with the biggest variance of their ratings."""
 			output = {}
 			for elem in self._ratings:
 				if elem.userId not in output:
@@ -262,9 +268,15 @@ class Ratings:
 			return dict(sorted(output.items(), key=lambda x: -x[1])[:n])
 
 
-# ratings = Ratings("ml-latest-small/ratings.csv", "ml-latest-small/movies.csv")
-# print(ratings.users.top_controversial(10))
-# exit(0)
+ratings = Ratings("ml-latest-small/ratings.csv", "ml-latest-small/movies.csv")
+print(ratings.users.top_controversial(5))
+print(ratings.users.dist_by_rating())
+print(ratings.users.dist_by_num_of_ratings())
+print(ratings.top_by_ratings(5))
+print(ratings.dist_by_rating())
+print(ratings.top_controversial(5))
+print(ratings.top_by_num_of_ratings(5))
+exit(0)
 
 
 class Tags:
@@ -281,6 +293,8 @@ class Tags:
 			next(file)
 			for line in file:
 				_, _, tag, _ = re.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", line.strip())
+				while re.match("\"(.*)\"", tag):
+					tag = re.sub("\"(.*)\"", r"\1", tag)
 				self.__tags.append(tag)
 
 	def most_words(self, n):
@@ -289,25 +303,7 @@ class Tags:
 		 where the keys are tags and the values are the number of words inside the tag.
 		Drop the duplicates. Sort it by numbers descendingly.
 		"""
-		{len(x.split()) for x in self.__tags}
-
-
-
-
-
-
-		big_tags = dict()
-		if (len(self.__tags) < n or n <= 0):
-			raise ValueError('n > count teg or n <= 0')
-		else:
-			no_sorted_tuple = dict(zip(self.__tags, (map(lambda x: len(x.split(' ')), self.__tags))))
-			sorted_tuple = dict(sorted(no_sorted_tuple.items(), key=lambda x: -x[1]))
-			count = 0
-			for key, value in sorted_tuple.items():
-				if (count != n):
-					big_tags[key] = value
-					count += 1
-		return big_tags
+		return dict(sorted({x: len(re.findall(r"\w+", x)) for x in set(self.__tags)}.items(), key=lambda x: -x[1])[:n])
 
 	def longest(self, n):
 		"""
@@ -354,7 +350,7 @@ class Tags:
 
 
 tags = Tags("ml-latest-small/tags.csv")
-# print(tags.most_words(10))
+print(tags.most_words(100))
 # print(tags.longest(10))
 # # print(tags.most_words_and_longest(10))
 print(tags.most_popular(10))
